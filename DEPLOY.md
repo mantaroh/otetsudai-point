@@ -26,10 +26,20 @@ npx wrangler secret put SESSION_SECRET
 
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
+
+# 通知(ポイント2倍デーの Web Push)を使う場合のみ。npm run vapid で作った3行を
+# 1行ずつ入れる(VAPID_SUBJECT は mailto:you@example.com のような値)
+npx wrangler secret put VAPID_PUBLIC_KEY
+npx wrangler secret put VAPID_PRIVATE_KEY
+npx wrangler secret put VAPID_SUBJECT
 ```
 
 `SESSION_SECRET` が未設定だと、アプリは起動せず 500 を返す。
 署名鍵なしで Cookie を配るくらいなら、動かないほうがましなので意図的にそうしてある。
+
+`VAPID_*` の3つは未設定でも起動する。通知の送信だけが省略され、
+ポイント2倍デーそのもの(帯の表示、シールが2倍貼られること)はふつうに動く。
+あとから通知だけ足したくなったら、このコマンドを流すだけでよい。
 
 > **`ENVIRONMENT` は設定しないこと。**
 > 開発用サインイン(`/auth/dev`。PIN もパスワードも要らない)は
@@ -38,6 +48,16 @@ npx wrangler secret put GOOGLE_CLIENT_SECRET
 > `wrangler.jsonc` に書かれていないことを機械的に確かめるテストがある(`tests/unit/config.test.ts`)。
 
 `APP_ORIGIN` も通常は不要。リクエストの URL から自動で判定する。
+
+> **Cron(毎時0分)は `wrangler.jsonc` の `triggers.crons` で設定される。**
+> デプロイするだけで有効になるが、デプロイ後に一度だけ Cloudflare のダッシュボードで
+> Trigger が登録されていることを確認しておく。「朝8時に送る」という判定自体は
+> Cloudflare 側ではなく、家庭ごとのローカル時刻で毎時アプリ側が判定している
+> (Cloudflare の cron は UTC 固定で、家庭の時差までは面倒を見てくれないため)。
+>
+> **iOS / iPadOS で通知を受け取るには、16.4 以降かつ「ホーム画面に追加」した
+> PWA として開いている必要がある。** Safari のタブで開いている状態では、
+> 台帳の帯に「おしらせを うけとる」ボタンそのものが出ない(仕様どおり)。
 
 ## 3. 先にデプロイして、URL を確定させる
 

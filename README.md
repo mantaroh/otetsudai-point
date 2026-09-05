@@ -36,12 +36,17 @@ npm run dev               # http://localhost:5173
 初回は「開発用サインイン(ローカルのみ)」のボタンから入る。Google のクライアントIDが無くても、
 ローカルではこのボタンで一通り動かせる。
 
+ポイント2倍デーの通知(Web Push)を試すときは、`npm run vapid` の出力3行をそのまま
+`.dev.vars` に貼る。鍵が無くても通知以外はふつうに動く(送信だけが省略される)ので、
+これは壊れた状態ではなく、ローカルの通常状態として扱ってよい。
+
 ### よく使うコマンド
 
 ```bash
 npm run dev            # 開発サーバ
 npm run build          # 型チェック + ビルド
 npm run db:reset       # ローカル D1 を作り直す(dev サーバは止めてから)
+npm run vapid          # 通知用の VAPID 鍵を作る(初回のみ)
 npm test               # 単体 + 画面 + API 結合(サーバは自動で起きる)
 npm run test:e2e       # 実ブラウザでの通し(Playwright)
 npm run test:all       # 上の2つを順に
