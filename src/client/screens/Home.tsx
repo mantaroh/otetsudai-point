@@ -1,4 +1,5 @@
 import type { Member, Sheet } from "../../shared/types";
+import { BonusBanner } from "../components/BonusBanner";
 import { useBootstrap } from "../hooks";
 import { track, useScreen } from "../lib/telemetry";
 import { useNavigate } from "../router";
@@ -22,6 +23,12 @@ export function HomeScreen() {
         <h1 className="text-2xl font-bold">おてつだいポイント</h1>
         <p className="mt-1 text-sm text-ink-soft">{data.family.name}</p>
       </header>
+
+      <div className="mb-4">
+        <BonusBanner
+          onStart={children.length === 1 ? () => navigate(`/m/${children[0]!.id}`) : undefined}
+        />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2" data-zone="children">
         {children.map((child) => (

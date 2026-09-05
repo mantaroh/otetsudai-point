@@ -213,6 +213,34 @@ describe("シールを貼る", () => {
   });
 });
 
+describe("2倍デーの楽観表示", () => {
+  it("2倍デーは、1回おすとサーバの返事を待たずに2まい分の見た目になる", async () => {
+    let release: (value: GrantResponse) => void = () => {};
+    vi.mocked(api.grant).mockImplementation(
+      () =>
+        new Promise<GrantResponse>((resolve) => {
+          release = resolve;
+        }),
+    );
+    state = makeBootstrap({
+      bonusToday: { active: true, multiplier: 2, source: "once", dayKey: "2026-09-05" },
+    });
+
+    const user = await openLedger();
+    await user.click(screen.getByRole("button", { name: /おふろそうじ/ }));
+    await user.click(screen.getByRole("button", { name: "シールをはる" }));
+
+    // サーバはまだ返していないが、2倍デーなので1回おしただけで2まい分見えている
+    // (3枚 + 2枚 = 5枚。1倍のときの4枚と混同しないよう、この数で確かめる)
+    expect(stickers()).toHaveLength(5);
+
+    serverAddsSticker(CHORE_BATH.emoji);
+    serverAddsSticker(CHORE_BATH.emoji);
+    release(grantResponse("grt_bonus"));
+    await waitFor(() => expect(stickers()).toHaveLength(5));
+  });
+});
+
 describe("1まいもどす", () => {
   it("貼るまでは押せない", async () => {
     const user = await openLedger();
