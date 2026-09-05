@@ -52,12 +52,18 @@ export async function saveSubscription(
   ]);
 }
 
-/** 自分の家庭の購読だけを解除する。無ければ false。 */
+/**
+ * 自分の家庭の購読だけを解除する。無効化した行数を返す(0なら見つからなかった)。
+ *
+ * 本来 endpoint は常に高々1行しか有効でないはずだが、それをこの戻り値で外から
+ * 確認できるようにしておく。件数を返さず真偽値だけにすると、2行同時に有効化する
+ * ような不具合が紛れ込んでもテストから見分けがつかなくなる。
+ */
 export async function removeSubscription(
   db: D1Database,
   familyId: string,
   endpoint: string,
-): Promise<boolean> {
+): Promise<number> {
   const result = await db
     .prepare(
       `UPDATE push_subscriptions SET revoked_at = ?
@@ -65,7 +71,7 @@ export async function removeSubscription(
     )
     .bind(Date.now(), familyId, endpoint)
     .run();
-  return result.meta.changes > 0;
+  return result.meta.changes;
 }
 
 export async function listSubscriptions(

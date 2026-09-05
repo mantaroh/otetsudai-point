@@ -43,5 +43,7 @@ pushRoutes.delete("/push/subscribe", async (c) => {
   const endpoint = asString(c.req.query("endpoint"), "endpoint", { max: 800 });
   const removed = await removeSubscription(c.env.DB, auth.familyId, endpoint);
   if (!removed) throw notFound("その購読は見つかりませんでした");
-  return c.json({ ok: true });
+  // 無効化した件数を返す。常に1のはずで、テストから「有効な購読は1つだけ」を
+  // 外部から確認する手段になる(件数を返さないと2件残っていても見分けがつかない)。
+  return c.json({ ok: true, removed });
 });

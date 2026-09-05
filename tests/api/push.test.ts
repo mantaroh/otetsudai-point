@@ -42,7 +42,12 @@ describe("購読", () => {
     await home.client.post("/api/push/subscribe", SUBSCRIPTION);
 
     const path = `/api/push/subscribe?endpoint=${encodeURIComponent(SUBSCRIPTION.endpoint)}`;
-    expect((await home.client.del(path)).status).toBe(200);
+    const first = await home.client.del(path);
+    expect(first.status).toBe(200);
+    // removed が 1 であることまで見て、初めて「有効な行が1つだけ」を証明できる。
+    // status だけだと、無効化前の行が2つ残っていても(2件消えて)200 になってしまい、
+    // 通り抜けてしまう。
+    expect(first.body.removed).toBe(1);
     // 2つ残っていたら、ここも 200 になってしまう
     expect((await home.client.del(path)).status).toBe(404);
   });
