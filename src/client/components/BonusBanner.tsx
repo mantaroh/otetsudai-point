@@ -9,7 +9,14 @@ import { track } from "../lib/telemetry";
  * 気づかせるだけで終わらせず、そのままお手伝いに進めるようにする。
  * 「見えているのに押されていない」が後から分かるよう、表示とタップを記録する。
  */
-export function BonusBanner({ onStart }: { onStart?: () => void }) {
+export function BonusBanner({
+  onStart,
+  className = "",
+}: {
+  onStart?: () => void;
+  /** 表示があるときだけ効かせたい余白。呼び出し元で外側に div を巻くと、非表示時に空の余白だけ残る */
+  className?: string;
+}) {
   const { data } = useBootstrap();
   const active = data?.bonusToday?.active === true;
   const multiplier = data?.bonusToday?.multiplier ?? 1;
@@ -26,9 +33,9 @@ export function BonusBanner({ onStart }: { onStart?: () => void }) {
   return (
     <div
       data-testid="bonus-banner-slot"
-      className="paper-card animate-shimmer border-accent/40 p-4 text-center"
+      className={`paper-card animate-shimmer border-accent/40 p-4 text-center ${className}`.trim()}
     >
-      <p className="text-xl font-bold text-accent">きょうは ポイント2ばい デー！</p>
+      <p className="text-xl font-bold text-accent">きょうは ポイント{multiplier}ばい デー！</p>
       <p className="mt-1 text-ink-soft">
         おてつだいすると シールが {multiplier}まい もらえるよ
       </p>

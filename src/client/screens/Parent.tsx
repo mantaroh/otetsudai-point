@@ -361,7 +361,7 @@ function RedeemDialog({
 /** 2倍デーに貼られたシールの印 */
 function BonusBadge({ multiplier }: { multiplier: number }) {
   return (
-    <span className="ml-1 rounded border border-amber-500 px-1 text-xs text-amber-700">
+    <span className="ml-1 rounded border border-accent bg-paper-deep px-1 text-xs text-accent">
       ×{multiplier}
     </span>
   );

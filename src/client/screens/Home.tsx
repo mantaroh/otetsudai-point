@@ -24,11 +24,10 @@ export function HomeScreen() {
         <p className="mt-1 text-sm text-ink-soft">{data.family.name}</p>
       </header>
 
-      <div className="mb-4">
-        <BonusBanner
-          onStart={children.length === 1 ? () => navigate(`/m/${children[0]!.id}`) : undefined}
-        />
-      </div>
+      <BonusBanner
+        className="mb-4"
+        onStart={children.length === 1 ? () => navigate(`/m/${children[0]!.id}`) : undefined}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2" data-zone="children">
         {children.map((child) => (

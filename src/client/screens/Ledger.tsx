@@ -186,9 +186,10 @@ export function LedgerScreen({ memberId }: { memberId: string }) {
         </button>
       </header>
 
-      <div className="mt-4">
-        <BonusBanner onStart={() => choresRef.current?.scrollIntoView({ behavior: "smooth" })} />
-      </div>
+      <BonusBanner
+        className="mt-4"
+        onStart={() => choresRef.current?.scrollIntoView({ behavior: "smooth" })}
+      />
 
       <p className="mt-4 text-center text-lg font-bold" style={{ color: accent }}>
         {isFull ? "いっぱいになったよ!" : `あと ${remaining} まい`}
