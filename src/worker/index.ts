@@ -8,6 +8,7 @@ import { deviceRoutes } from "./routes/devices";
 import { familyRoutes, familySetupRoutes } from "./routes/family";
 import { insightsRoutes } from "./routes/insights";
 import { ledgerRoutes } from "./routes/ledger";
+import { pushRoutes } from "./routes/push";
 import type { AppBindings } from "./types";
 
 const app = new Hono<AppBindings>();
@@ -53,6 +54,7 @@ api.route("/", deviceRoutes);
 api.route("/", familyRoutes);
 api.route("/", insightsRoutes);
 api.route("/", bonusRoutes);
+api.route("/", pushRoutes);
 app.route("/api", api);
 
 app.notFound((c) =>

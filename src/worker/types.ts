@@ -14,6 +14,10 @@ export interface AppEnv {
   SESSION_SECRET: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
+  /** Web Push の VAPID 鍵。未設定なら通知は送らない */
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  VAPID_SUBJECT?: string;
 }
 
 /**

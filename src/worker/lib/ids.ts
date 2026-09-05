@@ -16,7 +16,8 @@ type Prefix =
   | "grt"
   | "stk"
   | "rdm"
-  | "bns";
+  | "bns"
+  | "psb";
 
 export function newId(prefix: Prefix): string {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
