@@ -1,4 +1,7 @@
 import type {
+  BonusRule,
+  BonusRuleInput,
+  BonusState,
   BootstrapResponse,
   Chore,
   CreateFamilyRequest,
@@ -213,6 +216,20 @@ export const api = {
     request<FamilySettings>("settings-update", "/settings", {
       method: "PATCH",
       body: JSON.stringify(patch),
+      pin,
+    }),
+
+  bonus: (pin?: string) =>
+    request<{ state: BonusState; rules: BonusRule[] }>("bonus", "/bonus", { pin }),
+  enableBonusToday: (pin?: string) =>
+    post<{ state: BonusState; notified: boolean }>("bonus-today-on", "/bonus/today", undefined, pin),
+  disableBonusToday: (pin?: string) =>
+    request<{ state: BonusState }>("bonus-today-off", "/bonus/today", { method: "DELETE", pin }),
+  addBonusRule: (input: BonusRuleInput, pin?: string) =>
+    post<{ rule: BonusRule }>("bonus-rule-add", "/bonus/rules", input, pin),
+  removeBonusRule: (ruleId: string, pin?: string) =>
+    request<{ ok: true }>("bonus-rule-remove", `/bonus/rules/${ruleId}`, {
+      method: "DELETE",
       pin,
     }),
 
