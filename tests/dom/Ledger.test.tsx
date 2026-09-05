@@ -74,6 +74,8 @@ function grantResponse(id: string, becameFull = false): GrantResponse {
       choreLabel: CHORE_BATH.name,
       choreEmoji: CHORE_BATH.emoji,
       count: 1,
+      baseCount: 1,
+      multiplier: 1,
       note: null,
       createdBy: HANA.id,
       createdByName: HANA.name,

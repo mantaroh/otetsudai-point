@@ -36,6 +36,8 @@ function grant(overrides: Partial<Grant> = {}): Grant {
     choreLabel: "おふろそうじ",
     choreEmoji: "🛁",
     count: 2,
+    baseCount: 2,
+    multiplier: 1,
     note: null,
     createdBy: HANA.id,
     createdByName: "はな",

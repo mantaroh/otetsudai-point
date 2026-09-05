@@ -72,6 +72,10 @@ export interface Grant {
   choreLabel: string;
   choreEmoji: string | null;
   count: number;
+  /** 倍にする前の枚数（子が押した回数） */
+  baseCount: number;
+  /** 適用した倍率。ふだんは 1 */
+  multiplier: number;
   note: string | null;
   createdBy: string;
   createdByName: string;
@@ -124,6 +128,7 @@ export interface BootstrapResponse {
    */
   pendingGrants: Grant[];
   auth: AuthInfo;
+  bonusToday: BonusState;
 }
 
 export interface GrantRequest {

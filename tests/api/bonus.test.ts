@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { createHousehold, type Household } from "./client";
+import { createHousehold, currentSheet, stick, type Household } from "./client";
 import type { BonusRule, BonusState } from "../../src/shared/types";
 
 /**
@@ -85,5 +85,59 @@ describe("定期ルール", () => {
     const ruleId = (created.body.rule as BonusRule).id;
 
     expect((await home.client.del(`/api/bonus/rules/${ruleId}`)).status).toBe(404);
+  });
+});
+
+describe("2倍デーのシール発行", () => {
+  it("2倍の日は押した回数の2倍が貼られる", async () => {
+    const family = await createHousehold({ capacity: 30 });
+    const child = family.children[0]!;
+
+    await family.client.post("/api/bonus/today");
+    const result = await stick(family.client, child.id, family.choreId, 3);
+
+    expect(result.status).toBe(201);
+    expect(result.body.grant.count).toBe(6);
+    expect(result.body.grant.baseCount).toBe(3);
+    expect(result.body.grant.multiplier).toBe(2);
+    expect((await currentSheet(family.client, child.id)).filled).toBe(6);
+  });
+
+  it("取り消したあとは1倍に戻る", async () => {
+    const family = await createHousehold({ capacity: 30 });
+    const child = family.children[0]!;
+
+    await family.client.post("/api/bonus/today");
+    await family.client.del("/api/bonus/today");
+    const result = await stick(family.client, child.id, family.choreId, 3);
+
+    expect(result.body.grant.count).toBe(3);
+    expect(result.body.grant.multiplier).toBe(1);
+  });
+
+  it("倍後に台帳をまたいでも正しく配られる", async () => {
+    // 5マスの台帳に 2 枚貼ってある状態で、2倍で 6 枚追加する
+    const family = await createHousehold({ capacity: 5 });
+    const child = family.children[0]!;
+    await stick(family.client, child.id, family.choreId, 2);
+
+    await family.client.post("/api/bonus/today");
+    const result = await stick(family.client, child.id, family.choreId, 3);
+
+    expect(result.status).toBe(201);
+    expect(result.body.grant.count).toBe(6);
+    // 1冊目が満了し、2冊目に 3 枚残る
+    expect((await currentSheet(family.client, child.id)).seqNo).toBe(2);
+    expect((await currentSheet(family.client, child.id)).filled).toBe(3);
+  });
+
+  it("bootstrap が今日の状態を返す", async () => {
+    const family = await createHousehold();
+    expect((await family.client.get("/api/bootstrap")).body.bonusToday.active).toBe(false);
+
+    await family.client.post("/api/bonus/today");
+    const boot = await family.client.get("/api/bootstrap");
+    expect(boot.body.bonusToday.active).toBe(true);
+    expect(boot.body.bonusToday.multiplier).toBe(2);
   });
 });
