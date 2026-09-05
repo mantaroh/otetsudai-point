@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { resolveAuth, requireAuth } from "./auth/middleware";
 import { authRoutes } from "./routes/auth";
+import { bonusRoutes } from "./routes/bonus";
 import { choreRoutes } from "./routes/chores";
 import { deviceRoutes } from "./routes/devices";
 import { familyRoutes, familySetupRoutes } from "./routes/family";
@@ -51,6 +52,7 @@ api.route("/", choreRoutes);
 api.route("/", deviceRoutes);
 api.route("/", familyRoutes);
 api.route("/", insightsRoutes);
+api.route("/", bonusRoutes);
 app.route("/api", api);
 
 app.notFound((c) =>
