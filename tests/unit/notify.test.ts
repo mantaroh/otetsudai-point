@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bonusMessage, familiesToNotify } from "../../src/worker/lib/notify";
+import { bonusMessage, deliveryOutcome, familiesToNotify } from "../../src/worker/lib/notify";
 
 /**
  * 通知の文言と、朝の送信対象の絞り込み。
@@ -35,5 +35,35 @@ describe("familiesToNotify", () => {
 
   it("どこも8時でなければ空", () => {
     expect(familiesToNotify(rows, Date.UTC(2026, 8, 5, 20, 0))).toEqual([]);
+  });
+});
+
+/**
+ * D1 を伴う notifyBonus の end-to-end はフェイクの D1Database が要って割に合わないので、
+ * 実際の送信ステータスをどう扱うかの判断だけをここで固定しておく。
+ * 特にリダイレクト(3xx)は配達できていないので sent 扱いにしないことが肝心。
+ */
+describe("deliveryOutcome", () => {
+  it("2xx は sent", () => {
+    expect(deliveryOutcome(200)).toBe("sent");
+    expect(deliveryOutcome(201)).toBe("sent");
+    expect(deliveryOutcome(204)).toBe("sent");
+  });
+
+  it("404 と 410 は revoke（購読が失効している）", () => {
+    expect(deliveryOutcome(404)).toBe("revoke");
+    expect(deliveryOutcome(410)).toBe("revoke");
+  });
+
+  it("それ以外の 4xx / 5xx は failed", () => {
+    expect(deliveryOutcome(400)).toBe("failed");
+    expect(deliveryOutcome(429)).toBe("failed");
+    expect(deliveryOutcome(500)).toBe("failed");
+    expect(deliveryOutcome(503)).toBe("failed");
+  });
+
+  it("3xx（リダイレクト）は配達できていないので failed", () => {
+    expect(deliveryOutcome(301)).toBe("failed");
+    expect(deliveryOutcome(302)).toBe("failed");
   });
 });

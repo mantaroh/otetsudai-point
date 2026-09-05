@@ -19,6 +19,10 @@ import type { AppEnv } from "../types";
  *
  * VAPID 鍵が無い環境（ローカル開発・テスト）では、通行証だけ取って送信はしない。
  * 「送る条件が揃ったか」はテストできて、実際の配信だけが落ちる形にしてある。
+ *
+ * 通行証（claimSend）は送信を試す前に取る。取った後で送信が全滅しても、その日はもう
+ * 再送しない。「同じ日に二重に届く」より「その日は届かないことがある」を選んでいる。
+ * 子ども向けの毎日の通知では、重複より欠落のほうが実害が小さいという判断。
  */
 
 export const BONUS_KIND = "bonus";
@@ -88,6 +92,16 @@ function hasVapidKeys(env: AppEnv): boolean {
   return Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_SUBJECT);
 }
 
+/** 送信結果をどう扱うか。ステータスの判断だけを切り出して、単体テストで固定する。 */
+export type DeliveryOutcome = "sent" | "revoke" | "failed";
+
+export function deliveryOutcome(status: number): DeliveryOutcome {
+  if (status === 404 || status === 410) return "revoke"; // 購読が失効している
+  if (status >= 200 && status < 300) return "sent";
+  // 3xx（リダイレクト）は配達できていないので sent 扱いにしない
+  return "failed";
+}
+
 /**
  * その家庭に「今日は2倍」を送る。
  * 送る担当になれなかった（既に今日ぶんが送られている）場合は false。
@@ -114,10 +128,18 @@ export async function notifyBonus(
   for (const subscription of subscriptions) {
     try {
       const status = await sendOne(env, subscription, message);
-      // 購読が失効している。掃除して次から送らない。
-      if (status === 404 || status === 410) await revokeSubscription(env.DB, subscription.id);
-      else if (status >= 400) await markFailed(env.DB, subscription.id);
-      else await markSent(env.DB, subscription.id, at);
+      switch (deliveryOutcome(status)) {
+        case "revoke":
+          // 購読が失効している。掃除して次から送らない。
+          await revokeSubscription(env.DB, subscription.id);
+          break;
+        case "failed":
+          await markFailed(env.DB, subscription.id);
+          break;
+        case "sent":
+          await markSent(env.DB, subscription.id, at);
+          break;
+      }
     } catch (error) {
       console.error("push の送信に失敗", { id: subscription.id, error: String(error) });
       await markFailed(env.DB, subscription.id);
