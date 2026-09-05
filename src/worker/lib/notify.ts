@@ -161,7 +161,12 @@ export async function runBonusNotifications(env: AppEnv, at: number): Promise<nu
 
   let sent = 0;
   for (const familyId of targets) {
-    if (await notifyBonus(env, familyId, at)) sent += 1;
+    // 1家庭の失敗で残り全部の送信が止まらないように、ここで区切って止める
+    try {
+      if (await notifyBonus(env, familyId, at)) sent += 1;
+    } catch (error) {
+      console.error("notifyBonus に失敗", { familyId, error: String(error) });
+    }
   }
   return sent;
 }
