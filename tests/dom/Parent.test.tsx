@@ -231,5 +231,25 @@ describe("りれきタブ", () => {
     expect(await screen.findByText("取り消し")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "取り消す" })).not.toBeInTheDocument();
   });
+
+  it("2倍で貼られたシールにはバッジが出る", async () => {
+    vi.mocked(api.history).mockResolvedValue([
+      grant({ id: "grt_bonus", count: 6, baseCount: 3, multiplier: 2 }),
+    ]);
+    const user = await openParent();
+    await user.click(screen.getByRole("button", { name: "りれき" }));
+
+    expect(await screen.findByText(/6まい/)).toBeInTheDocument();
+    expect(screen.getByText("×2")).toBeInTheDocument();
+  });
+
+  it("ふつうの日はバッジが出ない", async () => {
+    vi.mocked(api.history).mockResolvedValue([grant({ count: 1 })]);
+    const user = await openParent();
+    await user.click(screen.getByRole("button", { name: "りれき" }));
+
+    await screen.findByText(/1まい/);
+    expect(screen.queryByText("×2")).toBeNull();
+  });
 });
 // せっていタブの中身は tests/dom/Settings.test.tsx で扱う

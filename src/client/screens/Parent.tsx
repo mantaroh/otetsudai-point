@@ -202,6 +202,7 @@ function ApprovalQueue() {
               </p>
               <p className="text-xs text-ink-soft">
                 {formatDateTime(grant.createdAt)} ・ {grant.count}まい
+                {grant.multiplier > 1 && <BonusBadge multiplier={grant.multiplier} />}
               </p>
             </div>
             <button
@@ -355,6 +356,17 @@ function RedeemDialog({
   );
 }
 
+// ── ボーナスバッジ ────────────────────────────
+
+/** 2倍デーに貼られたシールの印 */
+function BonusBadge({ multiplier }: { multiplier: number }) {
+  return (
+    <span className="ml-1 rounded border border-amber-500 px-1 text-xs text-amber-700">
+      ×{multiplier}
+    </span>
+  );
+}
+
 // ── りれき ────────────────────────────────────
 
 function HistoryTab() {
@@ -397,7 +409,8 @@ function HistoryTab() {
               {grant.revokedAt && <span className="ml-2 text-xs text-red-600">取り消し</span>}
             </p>
             <p className="text-xs text-ink-soft">
-              {formatDateTime(grant.createdAt)} ・ {grant.count}まい ・{" "}
+              {formatDateTime(grant.createdAt)} ・ {grant.count}まい
+              {grant.multiplier > 1 && <BonusBadge multiplier={grant.multiplier} />} ・{" "}
               {grant.createdVia === "self" ? "じぶんで" : `${grant.createdByName}がつけた`}
             </p>
           </div>
