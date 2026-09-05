@@ -50,8 +50,15 @@ export function BonusBanner({ onStart }: { onStart?: () => void }) {
           className="mt-2 w-full rounded-xl border border-line bg-card py-2 text-sm text-ink-soft"
           onClick={async () => {
             track("action", "bonus-banner:notify");
-            await subscribeToPush();
-            setAsked(true);
+            try {
+              await subscribeToPush();
+            } catch {
+              // subscribeToPush() 自身は失敗を false に丸める作りだが、
+              // ここでも受け止めておく。React はボタンの onClick が返す
+              // Promise を待たないので、catch が無いと未処理の rejection として漏れる。
+            } finally {
+              setAsked(true);
+            }
           }}
         >
           おしらせを うけとる

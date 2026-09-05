@@ -89,4 +89,21 @@ describe("おしらせのボタン", () => {
     await screen.findByText("きょうは ポイント2ばい デー！");
     expect(screen.queryByRole("button", { name: "おしらせを うけとる" })).toBeNull();
   });
+
+  it("購読に失敗しても、握りつぶしてボタンを消す(押しっぱなしにさせない)", async () => {
+    vi.mocked(api.bootstrap).mockResolvedValue(makeBootstrap({ bonusToday: ON }));
+    vi.mocked(subscribeToPush).mockRejectedValue(new Error("subscribe failed"));
+    const onUnhandledRejection = vi.fn();
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+
+    try {
+      renderScreen(<BonusBanner />);
+      await userEvent.click(await screen.findByRole("button", { name: "おしらせを うけとる" }));
+
+      expect(screen.queryByRole("button", { name: "おしらせを うけとる" })).toBeNull();
+      expect(onUnhandledRejection).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+    }
+  });
 });

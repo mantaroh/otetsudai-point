@@ -1,4 +1,5 @@
-import { api } from "../api";
+import { api, errorCode } from "../api";
+import { trackError } from "./telemetry";
 
 /**
  * Web Push の購読。
@@ -34,25 +35,38 @@ function decodeKey(base64Url: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
-/** 許可を求めて購読し、サーバに登録する。断られたら false。 */
+/**
+ * 許可を求めて購読し、サーバに登録する。断られたら false。
+ *
+ * pushManager.subscribe() は、鍵が壊れている・プッシュサービスに拒否された・
+ * Service Worker がまだ有効になっていない、といった理由で普通に失敗する。
+ * 失敗しても子ども側でできることは無いので、投げっぱなしにせず false に丸める。
+ * ここで例外を上に投げると、バナーのボタンが押せる状態のまま残ってしまい、
+ * 同じ失敗を繰り返し踏ませることになる。
+ */
 export async function subscribeToPush(): Promise<boolean> {
   if (!canUsePush()) return false;
 
-  const { publicKey } = await api.pushConfig();
-  if (!publicKey) return false;
+  try {
+    const { publicKey } = await api.pushConfig();
+    if (!publicKey) return false;
 
-  if ((await Notification.requestPermission()) !== "granted") return false;
+    if ((await Notification.requestPermission()) !== "granted") return false;
 
-  const registration = await navigator.serviceWorker.ready;
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: decodeKey(publicKey),
-  });
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: decodeKey(publicKey),
+    });
 
-  const json = subscription.toJSON();
-  await api.subscribePush({
-    endpoint: subscription.endpoint,
-    keys: { p256dh: json.keys?.p256dh ?? "", auth: json.keys?.auth ?? "" },
-  });
-  return true;
+    const json = subscription.toJSON();
+    await api.subscribePush({
+      endpoint: subscription.endpoint,
+      keys: { p256dh: json.keys?.p256dh ?? "", auth: json.keys?.auth ?? "" },
+    });
+    return true;
+  } catch (cause) {
+    trackError(errorCode(cause), "push-subscribe");
+    return false;
+  }
 }
