@@ -533,9 +533,11 @@ function BonusSection() {
   const state = query.data?.state;
   const rules = query.data?.rules ?? [];
 
-  // 「今日だけ」の on/off は結果に新しい state がそのまま返ってくるので、
-  // それをそのままキャッシュへ反映する。もう一度 GET /bonus を待たせない。
-  // ルールの追加・削除は state を返さないので、そのときだけ取り直す。
+  // 他の設定は useSettingsMutation() のように bootstrap の refresh() で反映するが、
+  // ここはそれをしない。「今日だけ」の on/off は結果に新しい state がそのまま
+  // 返ってくるので、それをそのままキャッシュへ書く方が、refetch を待つ間だけ
+  // 古い表示が一瞬見える(stale-UI flash)のを避けられる。
+  // ルールの追加・削除は state を返さないので、そのときだけ refetch() で取り直す。
   async function run(action: (pin?: string) => Promise<unknown>) {
     setBusy(true);
     try {

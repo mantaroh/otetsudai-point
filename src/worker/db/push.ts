@@ -28,7 +28,11 @@ export async function saveSubscription(
   input: SaveSubscriptionInput,
 ): Promise<void> {
   const now = Date.now();
-  // 同じ endpoint の古い購読を先に無効化する。家庭をまたいで端末が移ることもある。
+  // 同じ endpoint の古い購読を先に無効化する。family_id では絞り込まない。
+  // 共有タブレットが家庭をまたいで引き継がれることがあり(祖父母宅に貸す、譲る等)、
+  // それ自体は正当な移動。だが正当な引き継ぎと悪意ある乗っ取りは、サーバー側からは
+  // 区別できない。endpoint はブラウザが発行する当てずっぽうでは辿り着けない URL で、
+  // それを知っていること自体を「持っている証拠」とみなす設計にしている。
   await db.batch([
     db
       .prepare("UPDATE push_subscriptions SET revoked_at = ? WHERE endpoint = ? AND revoked_at IS NULL")
