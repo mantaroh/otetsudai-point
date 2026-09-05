@@ -176,6 +176,54 @@ describe("他家庭のデータ", () => {
   });
 });
 
+/**
+ * bonus_rules / push_subscriptions / push_sends は families(id) と members(id) を
+ * 参照する外部キーを持つ。D1 は外部キーを強制するので、これらの行を残したまま
+ * members / families を消そうとすると "FOREIGN KEY constraint failed" で
+ * バッチごと失敗する（削除も書き出しも、この2機能の後から足された）。
+ */
+describe("2倍デーと通知の行がある家庭の削除・エクスポート", () => {
+  it("今日を2倍にして通知を購読していても、家庭を削除できる", async () => {
+    const home = await createHousehold();
+    const tablet = await inviteDevice(home, "shared");
+
+    expect((await home.client.post("/api/bonus/today")).status).toBe(200);
+    expect(
+      (
+        await tablet.post("/api/push/subscribe", {
+          endpoint: "https://push.example.com/sub/delete-test",
+          keys: { p256dh: "BExamplePublicKey", auth: "ExampleAuthSecret" },
+        })
+      ).status,
+    ).toBe(201);
+
+    const result = await home.client.del(`/api/families/${home.familyId}`);
+    expect(result.status).toBe(200);
+    expect(result.body).toEqual({ ok: true });
+
+    // 本当に消えていることも確かめる(削除が黙って失敗していないか)
+    expect((await home.client.get("/api/bootstrap")).status).toBe(401);
+  });
+
+  it("エクスポートに bonus_rules と push_subscriptions が入る", async () => {
+    const home = await createHousehold({ familyName: "そうこ家" });
+    const tablet = await inviteDevice(home, "shared");
+
+    await home.client.post("/api/bonus/today");
+    await tablet.post("/api/push/subscribe", {
+      endpoint: "https://push.example.com/sub/export-test",
+      keys: { p256dh: "BExamplePublicKey", auth: "ExampleAuthSecret" },
+    });
+
+    const exported = await home.client.get("/api/export");
+    expect(exported.status).toBe(200);
+    expect(exported.body.data.bonus_rules).toHaveLength(1);
+    expect(exported.body.data.bonus_rules[0].family_id).toBe(home.familyId);
+    expect(exported.body.data.push_subscriptions).toHaveLength(1);
+    expect(exported.body.data.push_subscriptions[0].family_id).toBe(home.familyId);
+  });
+});
+
 describe("端末登録", () => {
   it("招待リンクを開くと、ログインなしで使えるようになる", async () => {
     const home = await createHousehold();
