@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.dev.vars.*
+*.local
+.DS_Store
+# D1 の書き出し。家族の記録そのものなので、間違って git に入れない
+backup-*.sql
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

@@ -1,0 +1,47 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "otetsudai-point",
+  "main": "./src/worker/index.ts",
+  "compatibility_date": "2025-04-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    // SPA なので、未知のパスは index.html に落としてクライアント側でルーティングする
+    "not_found_handling": "single-page-application",
+    // これらは静的ファイルより先に Worker へ回す。
+    // 指定しないと /api/* が SPA フォールバックに食われて index.html が返る。
+    //
+    // /invite/* はここに入れない。招待リンクを開いたときは画面(index.html)を出すだけにして、
+    // 端末の登録はその画面のボタン(POST)で行う。GET で登録すると、
+    // LINE のリンクプレビューなどが踏んだ時点で使い切られてしまう。
+    "run_worker_first": ["/api/*", "/auth/*"]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "otetsudai-point",
+      // ローカル開発では任意の値でよい。リモートに出す前に
+      //   npx wrangler d1 create otetsudai-point
+      // で払い出された ID に差し替える。
+      "database_id": "9cf46930-2d08-4904-9aa7-bf57d221b783"
+    }
+  ],
+
+  // ここに ENVIRONMENT を書かないこと。
+  // 開発用サインイン(/auth/dev)は ENVIRONMENT === "development" のときだけ有効になる。
+  // ここに書くとデプロイ先にもそのまま乗り、誰でもログインできてしまう。
+  // ローカルの値は .dev.vars に置いてある(git には入らない)。
+  //
+  // 公開 URL はリクエストから判定するので、通常 APP_ORIGIN の設定は要らない。
+  // リバースプロキシの裏など、リクエストから正しい URL が分からない場合だけ設定する。
+
+  "observability": {
+    "enabled": true
+  }
+
+  // 本番で設定するシークレット(wrangler secret put <NAME>):
+  //   SESSION_SECRET        … セッション/端末トークン Cookie の署名鍵(32バイト以上のランダム文字列)
+  //   GOOGLE_CLIENT_ID      … Google OAuth クライアントID
+  //   GOOGLE_CLIENT_SECRET  … Google OAuth クライアントシークレット
+}

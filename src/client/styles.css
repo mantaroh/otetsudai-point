@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+/*
+ * 紙のシール台帳の質感に寄せる。
+ * 白い管理画面ではなく、リビングに置いてある冊子に見えることを狙っている。
+ */
+@theme {
+  --color-paper: #fdf7ec;
+  --color-paper-deep: #f5ead6;
+  --color-card: #fffdf8;
+  --color-ink: #3d3428;
+  --color-ink-soft: #8a7c68;
+  --color-line: #e5d8c0;
+  --color-accent: #f2994a;
+  --color-gold: #e8b64c;
+
+  --font-sans:
+    "Hiragino Maru Gothic ProN", "Hiragino Kaku Gothic ProN", "Yu Gothic UI",
+    "Meiryo", system-ui, sans-serif;
+
+  --radius-card: 1.25rem;
+
+  --animate-pop: pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --animate-rise: rise 0.35s ease-out;
+  --animate-shimmer: shimmer 2.5s ease-in-out infinite;
+  --animate-fall: fall 2.4s linear forwards;
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.2) rotate(-25deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.18) rotate(6deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(232 182 76 / 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 14px rgb(232 182 76 / 0);
+  }
+}
+
+@keyframes fall {
+  0% {
+    transform: translateY(-10vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(105vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  /* タブレットで台帳をめくる操作と、ブラウザの引っぱって更新がぶつからないように */
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 子供が連打するので、テキスト選択が始まらないようにする */
+button {
+  user-select: none;
+  touch-action: manipulation;
+}
+
+@utility input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-line);
+  background-color: #fff;
+  padding: 0.75rem 1rem;
+  /* iOS で入力欄にフォーカスすると画面が拡大するのを防ぐため 16px 未満にしない */
+  font-size: 1rem;
+}
+
+@utility paper-card {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.8) inset,
+    0 8px 20px -12px rgb(61 52 40 / 0.35);
+}

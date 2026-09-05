@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    // テストは Worker 側とクライアント側の両方を import するので、
+    // D1Database などの Workers の型も読み込む(worker-configuration.d.ts を include に入れている)
+    "types": ["node", "vitest/globals", "vite/client"],
+
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+
+    "noEmit": true,
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo"
+  },
+  "include": [
+    "tests",
+    "e2e",
+    "src",
+    "worker-configuration.d.ts",
+    "vitest.config.ts",
+    "playwright.config.ts"
+  ]
+}
