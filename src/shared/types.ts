@@ -268,3 +268,35 @@ export interface UiInsights {
   members: MemberUsage[];
   daily: DailyUsage[];
 }
+
+// ── ポイント2倍デー ────────────────────────────
+
+export type BonusKind = "once" | "weekly" | "monthly";
+
+export interface BonusRule {
+  id: string;
+  kind: BonusKind;
+  /** kind='once' のとき 'YYYY-MM-DD' */
+  onDate: string | null;
+  /** kind='weekly' のとき 0(日)..6(土) */
+  weekday: number | null;
+  /** kind='monthly' のとき 1..31 */
+  dayOfMonth: number | null;
+  multiplier: number;
+  createdAt: number;
+}
+
+/** 定期ルールの追加リクエスト */
+export type BonusRuleInput =
+  | { kind: "weekly"; weekday: number }
+  | { kind: "monthly"; dayOfMonth: number };
+
+/** 今日が2倍かどうか。bootstrap にも載せる */
+export interface BonusState {
+  active: boolean;
+  multiplier: number;
+  /** 2倍になっている理由。'none' なら倍率なし */
+  source: "none" | "once" | "weekly" | "monthly";
+  /** 家庭のローカル日付 */
+  dayKey: string;
+}
