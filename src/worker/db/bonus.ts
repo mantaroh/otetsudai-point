@@ -169,6 +169,8 @@ export async function addRule(
   const weekday = input.kind === "weekly" ? input.weekday : null;
   const dayOfMonth = input.kind === "monthly" ? input.dayOfMonth : null;
 
+  // OR IGNORE は UNIQUE 違反だけでなく CHECK 違反も黙って無視する。
+  // なので weekday/dayOfMonth の範囲チェックはここでは行わず、API 境界(asInt)で先に弾く前提。
   const result = await db
     .prepare(
       `INSERT OR IGNORE INTO bonus_rules

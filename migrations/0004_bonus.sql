@@ -14,10 +14,15 @@ CREATE TABLE bonus_rules (
   created_by   TEXT REFERENCES members (id),
   created_at   INTEGER NOT NULL,
   disabled_at  INTEGER,
+  -- weekday/day_of_month は NULL BETWEEN ... が NULL(=偽ではない)と評価されるため、
+  -- IS NOT NULL を明示しないと discriminator が NULL のまま素通りしてしまう。
+  -- そうなると部分ユニークインデックスも NULL 同士を別物として扱うので重複チェックが効かない。
   CHECK (
     (kind = 'once'    AND on_date IS NOT NULL AND weekday IS NULL AND day_of_month IS NULL) OR
-    (kind = 'weekly'  AND on_date IS NULL AND weekday BETWEEN 0 AND 6 AND day_of_month IS NULL) OR
-    (kind = 'monthly' AND on_date IS NULL AND weekday IS NULL AND day_of_month BETWEEN 1 AND 31)
+    (kind = 'weekly'  AND on_date IS NULL AND weekday IS NOT NULL AND weekday BETWEEN 0 AND 6
+                      AND day_of_month IS NULL) OR
+    (kind = 'monthly' AND on_date IS NULL AND weekday IS NULL
+                      AND day_of_month IS NOT NULL AND day_of_month BETWEEN 1 AND 31)
   )
 );
 CREATE INDEX bonus_rules_family ON bonus_rules (family_id, disabled_at);
