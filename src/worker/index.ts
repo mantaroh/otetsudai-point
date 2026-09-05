@@ -9,7 +9,8 @@ import { familyRoutes, familySetupRoutes } from "./routes/family";
 import { insightsRoutes } from "./routes/insights";
 import { ledgerRoutes } from "./routes/ledger";
 import { pushRoutes } from "./routes/push";
-import type { AppBindings } from "./types";
+import { runBonusNotifications } from "./lib/notify";
+import type { AppBindings, AppEnv } from "./types";
 
 const app = new Hono<AppBindings>();
 
@@ -70,4 +71,19 @@ app.onError((error, c) => {
   return c.json({ error: "server_error", message: "サーバでエラーが発生しました" }, 500);
 });
 
-export default app;
+/**
+ * HTTP と Cron の両方を持つ Worker。
+ *
+ * 定期実行は「朝8時の家庭に2倍デーの通知を送る」だけ。
+ * 判定も送信も notify.ts に置いてあるので、ここは呼ぶだけにしておく。
+ */
+export default {
+  fetch: app.fetch,
+  async scheduled(_event: ScheduledController, env: AppEnv, ctx: ExecutionContext) {
+    ctx.waitUntil(
+      runBonusNotifications(env, Date.now()).catch((error) => {
+        console.error("朝の通知に失敗", String(error));
+      }),
+    );
+  },
+};
