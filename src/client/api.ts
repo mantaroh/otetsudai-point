@@ -256,4 +256,8 @@ export const api = {
     ),
   revokeDevice: (deviceId: string, pin?: string) =>
     request<{ ok: true }>("device-revoke", `/devices/${deviceId}`, { method: "DELETE", pin }),
+
+  pushConfig: () => request<{ publicKey: string | null }>("push-config", "/push/config"),
+  subscribePush: (body: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+    post<{ ok: true }>("push-subscribe", "/push/subscribe", body),
 };

@@ -11,7 +11,7 @@
  * /api/ 以下はいっさい触らず、常にネットワークに行かせる。
  */
 
-const VERSION = "v1";
+const VERSION = "v2";
 const SHELL_CACHE = `shell-${VERSION}`;
 const ASSET_CACHE = `assets-${VERSION}`;
 const SHELL_URL = "/";
@@ -103,6 +103,47 @@ self.addEventListener("fetch", (event) => {
         cache.put(request, response.clone());
       }
       return response;
+    })(),
+  );
+});
+
+/*
+ * おしらせ通知。
+ *
+ * 本文はサーバから届く JSON をそのまま使う。文言を変えるたびに
+ * Service Worker を配り直さなくて済むようにしてある。
+ */
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {};
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title ?? "おてつだいポイント", {
+      body: data.body ?? "",
+      icon: data.icon ?? "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      tag: data.tag ?? "otetsudai",
+      data: { url: data.url ?? "/" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url ?? "/";
+
+  event.waitUntil(
+    (async () => {
+      // 既に開いているタブがあれば、新しく開かずそれを前に出す
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of windows) {
+        if (new URL(client.url).origin === self.location.origin) return client.focus();
+      }
+      return self.clients.openWindow(url);
     })(),
   );
 });

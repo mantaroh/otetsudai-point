@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useBootstrap } from "../hooks";
+import { canUsePush, pushPermission, subscribeToPush } from "../lib/push";
 import { track } from "../lib/telemetry";
 
 /**
@@ -16,6 +17,9 @@ export function BonusBanner({ onStart }: { onStart?: () => void }) {
   useEffect(() => {
     if (active) track("view", "bonus-banner");
   }, [active]);
+
+  const [asked, setAsked] = useState(false);
+  const showNotifyButton = !asked && canUsePush() && pushPermission() === "default";
 
   if (!active) return <div data-testid="bonus-banner-slot" />;
 
@@ -38,6 +42,19 @@ export function BonusBanner({ onStart }: { onStart?: () => void }) {
           }}
         >
           いま おてつだいする
+        </button>
+      )}
+      {showNotifyButton && (
+        <button
+          type="button"
+          className="mt-2 w-full rounded-xl border border-line bg-card py-2 text-sm text-ink-soft"
+          onClick={async () => {
+            track("action", "bonus-banner:notify");
+            await subscribeToPush();
+            setAsked(true);
+          }}
+        >
+          おしらせを うけとる
         </button>
       )}
     </div>
