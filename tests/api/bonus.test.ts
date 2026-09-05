@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { createHousehold, currentSheet, stick, type Household } from "./client";
+import { Client, claimPath, createHousehold, currentSheet, stick, uuid, type Household } from "./client";
 import type { BonusRule, BonusState } from "../../src/shared/types";
 
 /**
@@ -139,5 +139,87 @@ describe("2倍デーのシール発行", () => {
     const boot = await family.client.get("/api/bootstrap");
     expect(boot.body.bonusToday.active).toBe(true);
     expect(boot.body.bonusToday.multiplier).toBe(2);
+  });
+});
+
+/**
+ * 倍率は「申告した瞬間」に決まり、「承認した瞬間」には決め直さない。
+ *
+ * 承認あり運用では親の承認が翌日にずれることがある。倍率を承認時に決める実装だと
+ * 「2倍のつもりで押したのに、承認されたら1倍だった(またはその逆)」が起きる。
+ * 申告時点の倍率が承認まで変わらず生き残ることを固定しておく。
+ */
+describe("倍率は承認時ではなく申告時に決まる(承認あり運用)", () => {
+  it("子の申請は申告時点の倍率のまま承認され、承認時に掛け直されない", async () => {
+    const home = await createHousehold({ capacity: 30 });
+    expect((await home.client.patch("/api/settings", { requireApproval: true })).status).toBe(200);
+    await home.client.post("/api/bonus/today");
+
+    const invite = await home.client.post("/api/devices/invites", {
+      kind: "shared",
+      label: "リビングのタブレット",
+    });
+    const tablet = new Client();
+    await tablet.post(claimPath(invite.body.url));
+
+    const child = home.children[0]!;
+    const requested = await stick(tablet, child.id, home.choreId, 2);
+
+    expect(requested.status).toBe(201);
+    expect(requested.body.grant.createdVia).toBe("self");
+    expect(requested.body.grant.approvedAt).toBeNull();
+    expect(requested.body.grant.baseCount).toBe(2);
+    expect(requested.body.grant.multiplier).toBe(2);
+    // 倍率は申告した時点で確定している(承認前でもすでに4)
+    expect(requested.body.grant.count).toBe(4);
+
+    // 承認前なので、台帳にはまだ何も貼られていない
+    expect((await currentSheet(home.client, child.id)).filled).toBe(0);
+
+    const boot = (await home.client.get("/api/bootstrap")).body;
+    const pending = boot.pendingGrants.find((g: any) => g.id === requested.body.grant.id);
+    expect(pending).toBeTruthy();
+    expect(pending.baseCount).toBe(2);
+    expect(pending.multiplier).toBe(2);
+    expect(pending.count).toBe(4);
+
+    const approved = await home.client.post(`/api/grants/${requested.body.grant.id}/approve`);
+    expect(approved.status).toBe(200);
+    // 承認では倍率を掛け直さない: 2 でも 8 でもなく、申告時に決めた 4 のまま
+    expect(approved.body.grant.count).toBe(4);
+    expect(approved.body.grant.multiplier).toBe(2);
+    expect((await currentSheet(home.client, child.id)).filled).toBe(4);
+  });
+});
+
+/**
+ * POST /api/grants は requestId で重複排除する。
+ *
+ * 通信の再送や連打の取りこぼしで同じリクエストがもう一度届いても、
+ * 2倍デーの倍率がもう一度掛かって二重に貼られてはならない。
+ */
+describe("2倍デーの再送は倍率を再適用しない", () => {
+  it("同じ requestId で同じ申請を再送しても、貼られるシールは1回ぶんのまま", async () => {
+    const family = await createHousehold({ capacity: 30 });
+    const child = family.children[0]!;
+    await family.client.post("/api/bonus/today");
+
+    const requestId = uuid();
+    const body = { memberId: child.id, choreId: family.choreId, count: 3, requestId };
+
+    const first = await family.client.post("/api/grants", body);
+    expect(first.status).toBe(201);
+    expect(first.body.grant.baseCount).toBe(3);
+    expect(first.body.grant.multiplier).toBe(2);
+    expect(first.body.grant.count).toBe(6);
+
+    const second = await family.client.post("/api/grants", body);
+    expect(second.status).toBe(201);
+    expect(second.body.grant.id).toBe(first.body.grant.id);
+    expect(second.body.grant.count).toBe(6);
+    expect(second.body.grant.multiplier).toBe(2);
+
+    // 倍率が二重に掛かれば 12 になってしまうところ、6 のまま
+    expect((await currentSheet(family.client, child.id)).filled).toBe(6);
   });
 });
