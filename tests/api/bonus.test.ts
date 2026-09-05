@@ -223,3 +223,26 @@ describe("2倍デーの再送は倍率を再適用しない", () => {
     expect((await currentSheet(family.client, child.id)).filled).toBe(6);
   });
 });
+
+describe("通知の二重送信", () => {
+  it("最初のONで送る担当になる", async () => {
+    const family = await createHousehold();
+    const result = await family.client.post("/api/bonus/today");
+    expect(result.body.notified).toBe(true);
+  });
+
+  it("同じ日に二度目のONでは送らない", async () => {
+    const family = await createHousehold();
+    await family.client.post("/api/bonus/today");
+    const second = await family.client.post("/api/bonus/today");
+    expect(second.body.notified).toBe(false);
+  });
+
+  it("取り消してからONし直しても、その日はもう送らない", async () => {
+    const family = await createHousehold();
+    await family.client.post("/api/bonus/today");
+    await family.client.del("/api/bonus/today");
+    const again = await family.client.post("/api/bonus/today");
+    expect(again.body.notified).toBe(false);
+  });
+});

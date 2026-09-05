@@ -12,6 +12,7 @@ import {
   removeRule,
 } from "../db/bonus";
 import { getAuth, requireParent } from "../auth/middleware";
+import { notifyBonus } from "../lib/notify";
 import type { AppBindings } from "../types";
 
 /**
@@ -31,10 +32,15 @@ bonusRoutes.get("/bonus", requireParent, async (c) => {
 
 bonusRoutes.post("/bonus/today", requireParent, async (c) => {
   const auth = getAuth(c);
+  const now = Date.now();
   const parentMemberId = await resolveParentMemberId(c.env.DB, auth.familyId, auth.parentMemberId);
-  const state = await enableToday(c.env.DB, auth.familyId, Date.now(), parentMemberId);
-  // 通知は Task 9 で繋ぐ
-  return c.json({ state, notified: false });
+  const state = await enableToday(c.env.DB, auth.familyId, now, parentMemberId);
+  // 送信そのものが失敗しても、2倍の設定は成立させる
+  const notified = await notifyBonus(c.env, auth.familyId, now).catch((error) => {
+    console.error("2倍デーの通知に失敗", { familyId: auth.familyId, error: String(error) });
+    return false;
+  });
+  return c.json({ state, notified });
 });
 
 bonusRoutes.delete("/bonus/today", requireParent, async (c) => {
