@@ -30,11 +30,28 @@ test("親が2倍にすると、子の台帳で倍のシールが貼られる", a
   // 実際に貼るのは、そこから普段どおりお手伝いを選んで「シールをはる」を押したとき。
   await page.getByRole("button", { name: "いま おてつだいする" }).click();
   await page.getByRole("button", { name: /おふろそうじ/ }).click();
-  await page.getByRole("button", { name: "シールをはる" }).click();
 
-  // 1回押しただけで2枚貼られる。空きマスが2つ減る
+  // 台帳は押した瞬間に楽観表示でシールを置く(Ledger.tsx の pending)。
+  // その枚数もクライアント側で multiplier を掛けて計算しているので、
+  // リロードせずに数えると、サーバが実際には倍にしていなくても
+  // 同じ2枚に見えてしまい、このテストの意味が無くなる。
+  // なので POST /api/grants の完了を待ってからリロードし、
+  // 楽観表示を消したあと(=サーバに保存された分だけ)を数える。
+  const granted = page.waitForResponse(
+    (response) => response.url().includes("/api/grants") && response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "シールをはる" }).click();
+  const response = await granted;
+  expect(response.status()).toBe(201);
+
+  await page.reload();
+
+  // 1回押しただけで2枚貼られている。空きマスが2つ減る
   await expect(page.getByTestId("sticker")).toHaveCount(2);
   await expect(page.getByTestId("empty-slot")).toHaveCount(18);
+  // リロード後も帯が出ている = bonusToday はクライアントの一時状態ではなく、
+  // bootstrap から取り直しても残るサーバ側の状態であることの確認
+  await expect(page.getByText("きょうは ポイント2ばい デー！")).toBeVisible();
 
   expect(errors).toEqual([]);
 });
