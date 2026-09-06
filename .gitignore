@@ -3,6 +3,8 @@ dist/
 .wrangler/
 .dev.vars
 .dev.vars.*
+# ひな形だけは例外。手元にコピーして使うためのファイルなので commit する
+!.dev.vars.example
 *.local
 .DS_Store
 # D1 の書き出し。家族の記録そのものなので、間違って git に入れない

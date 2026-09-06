@@ -1,4 +1,7 @@
 import type {
+  BonusRule,
+  BonusRuleInput,
+  BonusState,
   BootstrapResponse,
   Chore,
   CreateFamilyRequest,
@@ -216,6 +219,20 @@ export const api = {
       pin,
     }),
 
+  bonus: (pin?: string) =>
+    request<{ state: BonusState; rules: BonusRule[] }>("bonus", "/bonus", { pin }),
+  enableBonusToday: (pin?: string) =>
+    post<{ state: BonusState; notified: boolean }>("bonus-today-on", "/bonus/today", undefined, pin),
+  disableBonusToday: (pin?: string) =>
+    request<{ state: BonusState }>("bonus-today-off", "/bonus/today", { method: "DELETE", pin }),
+  addBonusRule: (input: BonusRuleInput, pin?: string) =>
+    post<{ rule: BonusRule }>("bonus-rule-add", "/bonus/rules", input, pin),
+  removeBonusRule: (ruleId: string, pin?: string) =>
+    request<{ ok: true }>("bonus-rule-remove", `/bonus/rules/${ruleId}`, {
+      method: "DELETE",
+      pin,
+    }),
+
   devices: (pin?: string) =>
     request<
       Array<{
@@ -239,4 +256,8 @@ export const api = {
     ),
   revokeDevice: (deviceId: string, pin?: string) =>
     request<{ ok: true }>("device-revoke", `/devices/${deviceId}`, { method: "DELETE", pin }),
+
+  pushConfig: () => request<{ publicKey: string | null }>("push-config", "/push/config"),
+  subscribePush: (body: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+    post<{ ok: true }>("push-subscribe", "/push/subscribe", body),
 };

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import type { Chore, FamilySettings, Member } from "../../shared/types";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { BonusRule, BonusState, Chore, FamilySettings, Member } from "../../shared/types";
 import { api } from "../api";
 import { QrCode } from "../components/QrCode";
 import { withExternalBrowser } from "../lib/inviteUrl";
@@ -24,6 +24,7 @@ export function SettingsTab() {
     <div className="space-y-6">
       <MembersSection />
       <RulesSection />
+      <BonusSection />
       <PinSection />
       <DevicesSection />
       <ChoresSection />
@@ -507,6 +508,164 @@ function RulesSection() {
       </div>
 
       {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
+    </Section>
+  );
+}
+
+// ── ポイント2倍デー ──────────────────────────────
+
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+
+/**
+ * ポイント2倍デー。
+ *
+ * 単発(今日だけ)と定期(毎週・毎月)を1か所で扱う。
+ * 定期の設定で2倍になっている日は、単発の取り消しでは戻せないので、
+ * トグルを出さずに理由だけを見せる。
+ */
+function BonusSection() {
+  const { withPin } = usePin();
+  const queryClient = useQueryClient();
+  const query = useQuery({ queryKey: ["bonus"], queryFn: () => api.bonus() });
+  const [dayOfMonth, setDayOfMonth] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const state = query.data?.state;
+  const rules = query.data?.rules ?? [];
+
+  // 他の設定は useSettingsMutation() のように bootstrap の refresh() で反映するが、
+  // ここはそれをしない。「今日だけ」の on/off は結果に新しい state がそのまま
+  // 返ってくるので、それをそのままキャッシュへ書く方が、refetch を待つ間だけ
+  // 古い表示が一瞬見える(stale-UI flash)のを避けられる。
+  // ルールの追加・削除は state を返さないので、そのときだけ refetch() で取り直す。
+  async function run(action: (pin?: string) => Promise<unknown>) {
+    setBusy(true);
+    try {
+      const result = await withPin(action);
+      if (result && typeof result === "object" && "state" in result) {
+        const nextState = (result as { state: BonusState }).state;
+        queryClient.setQueryData<{ state: BonusState; rules: BonusRule[] }>(
+          ["bonus"],
+          (prev) => ({ rules: prev?.rules ?? [], state: nextState }),
+        );
+      } else {
+        await query.refetch();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const weekly = new Map(rules.filter((rule) => rule.kind === "weekly").map((r) => [r.weekday, r]));
+  const monthly = rules.filter((rule) => rule.kind === "monthly");
+
+  return (
+    <Section title="ポイント2倍デー" hint="お手伝い1回で、シールが2まい貼られます">
+      {state?.active ? (
+        <p className="font-bold">今日はポイント2倍です</p>
+      ) : (
+        <p className="text-ink-soft">今日はふつうの1倍です</p>
+      )}
+
+      {state?.active && state.source !== "once" ? (
+        <p className="mt-2 text-sm text-ink-soft">
+          {state.source === "weekly"
+            ? `毎週${WEEKDAYS[new Date(`${state.dayKey}T00:00:00Z`).getUTCDay()]}曜日の設定で2倍になっています`
+            : "毎月の設定で2倍になっています"}
+          。やめるときは下の設定を消してください。
+        </p>
+      ) : state?.active ? (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => run((pin) => api.disableBonusToday(pin))}
+          className="mt-3 w-full rounded-xl bg-paper-deep py-3 text-sm font-bold disabled:opacity-40"
+        >
+          今日の2倍をやめる
+        </button>
+      ) : (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => run((pin) => api.enableBonusToday(pin))}
+          className="mt-3 w-full rounded-xl bg-accent py-3 text-sm font-bold text-white disabled:opacity-40"
+        >
+          今日をポイント2倍にする
+        </button>
+      )}
+
+      <h3 className="mt-6 text-sm font-bold">毎週きまった曜日</h3>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {WEEKDAYS.map((label, weekday) => {
+          const rule = weekly.get(weekday);
+          return (
+            <button
+              key={weekday}
+              type="button"
+              disabled={busy}
+              aria-pressed={rule !== undefined}
+              onClick={() =>
+                run((pin) =>
+                  rule
+                    ? api.removeBonusRule(rule.id, pin)
+                    : api.addBonusRule({ kind: "weekly", weekday }, pin),
+                )
+              }
+              className={`rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-40 ${
+                rule ? "bg-accent text-white" : "bg-card"
+              }`}
+            >
+              {rule ? `毎週${label}曜日 を削除` : `毎週 ${label}曜日`}
+            </button>
+          );
+        })}
+      </div>
+
+      <h3 className="mt-6 text-sm font-bold">毎月きまった日</h3>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <label className="text-sm text-ink-soft" htmlFor="bonus-day-of-month">
+          毎月の日にち
+        </label>
+        <input
+          id="bonus-day-of-month"
+          inputMode="numeric"
+          value={dayOfMonth}
+          onChange={(event) => setDayOfMonth(event.target.value.replace(/\D/g, "").slice(0, 2))}
+          className="input w-20"
+        />
+        <button
+          type="button"
+          disabled={busy || dayOfMonth === "" || Number(dayOfMonth) < 1 || Number(dayOfMonth) > 31}
+          onClick={() =>
+            run(async (pin) => {
+              await api.addBonusRule({ kind: "monthly", dayOfMonth: Number(dayOfMonth) }, pin);
+              setDayOfMonth("");
+            })
+          }
+          className="rounded-xl bg-paper-deep px-5 py-2 text-sm font-bold disabled:opacity-40"
+        >
+          毎月の日を追加
+        </button>
+      </div>
+      <ul className="mt-2 space-y-1">
+        {monthly.map((rule) => (
+          <li
+            key={rule.id}
+            className="flex items-center justify-between rounded-lg bg-paper-deep px-3 py-2"
+          >
+            <span className="text-sm">毎月 {rule.dayOfMonth}日</span>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => run((pin) => api.removeBonusRule(rule.id, pin))}
+              className="rounded-lg bg-card px-3 py-2 text-xs"
+            >
+              毎月{rule.dayOfMonth}日 を削除
+            </button>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-xs text-ink-soft">31日を選ぶと、31日がない月はお休みになります。</p>
     </Section>
   );
 }

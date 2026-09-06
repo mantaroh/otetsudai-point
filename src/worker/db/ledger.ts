@@ -47,6 +47,8 @@ interface GrantRow {
   chore_label: string;
   chore_emoji: string | null;
   count: number;
+  base_count: number | null;
+  multiplier: number;
   note: string | null;
   created_by: string;
   created_by_name: string | null;
@@ -61,6 +63,7 @@ const SHEET_COLUMNS = `s.id, s.member_id, s.seq_no, s.capacity, s.status, s.star
                        s.filled_at, s.redeem_requested_at, s.redeemed_at`;
 
 const GRANT_COLUMNS = `g.id, g.member_id, g.chore_id, g.chore_label, g.chore_emoji, g.count,
+                       g.base_count, g.multiplier,
                        g.note, g.created_by, m.name AS created_by_name, g.created_via,
                        g.created_at, g.approved_at, g.revoked_at, g.revoke_reason`;
 
@@ -98,6 +101,9 @@ function toGrant(row: GrantRow): Grant {
     choreLabel: row.chore_label,
     choreEmoji: row.chore_emoji,
     count: row.count,
+    // この列より前に作られた grant は base_count を持たない
+    baseCount: row.base_count ?? row.count,
+    multiplier: row.multiplier,
     note: row.note,
     createdBy: row.created_by,
     createdByName: row.created_by_name ?? "",
@@ -451,6 +457,10 @@ export interface CreateGrantInput {
   choreLabel: string;
   choreEmoji: string | null;
   count: number;
+  /** 倍にする前の枚数 */
+  baseCount: number;
+  /** 適用する倍率。count は既に倍したあとの値であること */
+  multiplier: number;
   note: string | null;
   createdBy: string;
   createdVia: "self" | "parent";
@@ -568,8 +578,9 @@ async function attemptCreateGrant(
     db
       .prepare(
         `INSERT INTO grants (id, family_id, member_id, chore_id, chore_label, chore_emoji, count,
+                             base_count, multiplier,
                              note, created_by, created_via, request_id, created_at, approved_at, approved_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         grantId,
@@ -579,6 +590,8 @@ async function attemptCreateGrant(
         input.choreLabel,
         input.choreEmoji,
         input.count,
+        input.baseCount,
+        input.multiplier,
         input.note,
         input.createdBy,
         input.createdVia,

@@ -9,6 +9,7 @@ import { badRequest, forbidden, notFound } from "../lib/errors";
 import { asInt, asOptionalInt, asOptionalString, asString, readJson } from "../lib/validate";
 import { getFamily, getMember, getSettings, listMembers, resolveParentMemberId } from "../db/family";
 import { getChore, listChores, upsertChoreByName } from "../db/chores";
+import { getState, resolveMultiplier } from "../db/bonus";
 import {
   approveGrant,
   createGrant,
@@ -46,13 +47,14 @@ async function loadMemberOr404(c: AppContext, memberId: string) {
 
 ledgerRoutes.get("/bootstrap", async (c) => {
   const auth = getAuth(c);
-  const [family, settings, members, chores, open, pendingGrants] = await Promise.all([
+  const [family, settings, members, chores, open, pendingGrants, bonusToday] = await Promise.all([
     getFamily(c.env.DB, auth.familyId),
     getSettings(c.env.DB, auth.familyId),
     listMembers(c.env.DB, auth.familyId),
     listChores(c.env.DB, auth.familyId),
     loadOpenSheets(c.env.DB, auth.familyId),
     listPendingGrants(c.env.DB, auth.familyId),
+    getState(c.env.DB, auth.familyId, Date.now()),
   ]);
   if (!family || !settings) throw notFound();
 
@@ -86,6 +88,7 @@ ledgerRoutes.get("/bootstrap", async (c) => {
     pendingSheets: open.pending.filter((sheet) => visibleSheet(sheet.memberId)),
     pendingGrants: pendingGrants.filter((grant) => visibleSheet(grant.memberId)),
     auth: authInfo,
+    bonusToday,
   };
   return c.json(response);
 });
@@ -145,7 +148,11 @@ ledgerRoutes.post("/grants", async (c) => {
     throw forbidden("この家庭では、シールを貼れるのはおうちの人だけです");
   }
 
-  const count = asInt(body.count, "枚数", { min: 1, max: 50 });
+  // 押した回数はそのまま base_count に残し、count には倍したあとの枚数を入れる。
+  // count の意味（実際に貼られたシールの枚数）は変えないので、配る処理は無変更で済む。
+  const baseCount = asInt(body.count, "枚数", { min: 1, max: 50 });
+  const multiplier = await resolveMultiplier(c.env.DB, auth.familyId, Date.now());
+  const count = baseCount * multiplier;
   const requestId = asString(body.requestId, "requestId", { min: 8, max: 64 });
 
   // メニューから選ばれたか、「そのほか」で入力されたか。
@@ -180,6 +187,8 @@ ledgerRoutes.post("/grants", async (c) => {
     choreLabel,
     choreEmoji,
     count,
+    baseCount,
+    multiplier,
     note: asOptionalString(body.note, "メモ", { max: 200 }),
     createdBy,
     createdVia,

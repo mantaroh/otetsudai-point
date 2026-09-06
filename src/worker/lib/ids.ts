@@ -5,7 +5,19 @@
  * ことが前提になる。
  */
 
-type Prefix = "usr" | "fam" | "mem" | "dev" | "inv" | "cho" | "sht" | "grt" | "stk" | "rdm";
+type Prefix =
+  | "usr"
+  | "fam"
+  | "mem"
+  | "dev"
+  | "inv"
+  | "cho"
+  | "sht"
+  | "grt"
+  | "stk"
+  | "rdm"
+  | "bns"
+  | "psb";
 
 export function newId(prefix: Prefix): string {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;

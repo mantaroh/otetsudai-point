@@ -1,0 +1,28 @@
+# ローカル開発用の環境変数。git には入らない(.gitignore 済み)。
+# このファイルを .dev.vars にコピーして使う。
+
+# Cookie の署名鍵。32 バイト以上のランダム文字列にする。
+#   node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+SESSION_SECRET=
+
+# 開発用サインイン(/auth/dev)を有効にする。
+# **本番では絶対に設定しないこと。** 誰でもログインできてしまう。
+# wrangler.jsonc の vars ではなくここに置いているのは、
+# 書き忘れてデプロイに乗るのを防ぐため(未設定 = 本番扱い)。
+ENVIRONMENT=development
+
+# Google ログインを手元で試すときだけ設定する。
+# 未設定でも、開発用サインインで一通り動かせる。
+# GOOGLE_CLIENT_ID=
+# GOOGLE_CLIENT_SECRET=
+
+# 公開 URL。ふだんはリクエストから判定するので不要。
+# リバースプロキシの裏など、リクエストから正しい URL が分からない場合だけ設定する。
+# APP_ORIGIN=
+
+# ポイント2倍デーの通知(Web Push)用。任意。
+# 未設定でも通知が省略されるだけで、それ以外はふつうに動く。
+# npm run vapid で3行まとめて出るので、それをそのまま貼る。
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=

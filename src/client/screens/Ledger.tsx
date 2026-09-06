@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type { Chore } from "../../shared/types";
 import { api } from "../api";
+import { BonusBanner } from "../components/BonusBanner";
 import { Confetti } from "../components/Confetti";
 import { SheetGrid, type PendingSticker } from "../components/SheetGrid";
 import { useBootstrap, useRefreshBootstrap } from "../hooks";
@@ -30,6 +31,7 @@ export function LedgerScreen({ memberId }: { memberId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const inFlight = useRef(0);
+  const choresRef = useRef<HTMLDivElement>(null);
 
   useScreen("ledger", memberId);
 
@@ -47,6 +49,8 @@ export function LedgerScreen({ memberId }: { memberId: string }) {
   if (!data || !member || !sheet) return <Loading />;
 
   const accent = member.color ?? "#f2994a";
+  // 2倍デーの倍率。bonusToday が無い/非アクティブなら1倍として扱う
+  const multiplier = data.bonusToday?.active === true ? data.bonusToday.multiplier : 1;
   const remaining = Math.max(0, sheet.capacity - sheet.filled - pending.length);
   const isFull = remaining === 0;
   // 満了して親のハンコを待っている台帳。繰り越しが起きると、いま貼っている台帳とは別に存在する
@@ -61,9 +65,14 @@ export function LedgerScreen({ memberId }: { memberId: string }) {
 
     // 承認あり運用では、押しても即シールにはならない。
     // 貼れたように見せてから消えると、いちばん残念な体験になる。
+    //
+    // 2倍デーはサーバが count × multiplier 枚のシールを発行する。
+    // 楽観表示の枚数をそれに合わせておかないと、サーバの返事が届いた瞬間に
+    // 「押した数だけ貼られたはずの見た目」から急に枚数が増えて見えてしまう。
+    const effectiveCount = count * multiplier;
     const keys: string[] = needsApproval
       ? []
-      : Array.from({ length: count }, () => crypto.randomUUID());
+      : Array.from({ length: effectiveCount }, () => crypto.randomUUID());
     if (keys.length > 0) {
       setPending((current) => [...current, ...keys.map((key) => ({ key, art: selected.emoji }))]);
     }
@@ -177,6 +186,11 @@ export function LedgerScreen({ memberId }: { memberId: string }) {
         </button>
       </header>
 
+      <BonusBanner
+        className="mt-4"
+        onStart={() => choresRef.current?.scrollIntoView({ behavior: "smooth" })}
+      />
+
       <p className="mt-4 text-center text-lg font-bold" style={{ color: accent }}>
         {isFull ? "いっぱいになったよ!" : `あと ${remaining} まい`}
       </p>
@@ -228,7 +242,10 @@ export function LedgerScreen({ memberId }: { memberId: string }) {
         </p>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 border-t border-line bg-card/95 px-4 pb-[env(safe-area-inset-bottom)] pt-3 backdrop-blur">
+      <div
+        ref={choresRef}
+        className="fixed inset-x-0 bottom-0 border-t border-line bg-card/95 px-4 pb-[env(safe-area-inset-bottom)] pt-3 backdrop-blur"
+      >
         <div className="mx-auto max-w-2xl">
           {chore ? (
             <StickPad

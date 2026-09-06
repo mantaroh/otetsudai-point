@@ -872,6 +872,7 @@ git commit -m "ポイント2倍デーの設定 API を追加"
 - Modify: `src/worker/db/ledger.ts`
 - Modify: `src/worker/routes/ledger.ts`
 - Modify: `src/shared/types.ts`
+- Modify: `tests/dom/helpers.tsx`
 - Test: `tests/api/bonus.test.ts`（追記）
 
 **Interfaces:**
@@ -948,7 +949,27 @@ describe("2倍デーのシール発行", () => {
 Run: `npx vitest run --project api tests/api/bonus.test.ts`
 Expected: FAIL（`count` が 3 のまま、`bonusToday` が undefined）
 
-- [ ] **Step 3: 型を広げる**
+- [ ] **Step 3: 画面テストのフィクスチャを先に直す**
+
+`BootstrapResponse` と `Grant` に必須のフィールドを足すと、
+`tests/dom/helpers.tsx` がそれらを組み立てている箇所で型が合わなくなる。
+`tsconfig.test.json` は `tests` を含んでいるので `tsc -b` が落ちる。
+型を広げる前にフィクスチャを直しておく。
+
+`tests/dom/helpers.tsx` の `makeGrant` の返り値に足す（`count: 1,` の隣）:
+
+```ts
+    baseCount: 1,
+    multiplier: 1,
+```
+
+`makeBootstrap` の返り値に足す（`pendingGrants: [],` の隣）:
+
+```ts
+    bonusToday: { active: false, multiplier: 1, source: "none", dayKey: "2026-09-05" },
+```
+
+- [ ] **Step 4: 型を広げる**
 
 `src/shared/types.ts` の `Grant` に2つ足す:
 
@@ -965,7 +986,7 @@ Expected: FAIL（`count` が 3 のまま、`bonusToday` が undefined）
   bonusToday: BonusState;
 ```
 
-- [ ] **Step 4: ledger.ts に倍率を通す**
+- [ ] **Step 5: ledger.ts に倍率を通す**
 
 `src/worker/db/ledger.ts` の変更点は4つ。
 
@@ -1032,7 +1053,7 @@ const GRANT_COLUMNS = `g.id, g.member_id, g.chore_id, g.chore_label, g.chore_emo
       ),
 ```
 
-- [ ] **Step 5: routes/ledger.ts で倍率を解決する**
+- [ ] **Step 6: routes/ledger.ts で倍率を解決する**
 
 import に足す:
 
@@ -1075,15 +1096,15 @@ import { getState, resolveMultiplier } from "../db/bonus";
     bonusToday,
 ```
 
-- [ ] **Step 6: テストが通ることを確認する**
+- [ ] **Step 7: テストが通ることを確認する**
 
 Run: `npx vitest run --project api`
 Expected: PASS（既存の ledger / approval / concurrency も含めて全部）
 
-- [ ] **Step 7: コミット**
+- [ ] **Step 8: コミット**
 
 ```bash
-git add src/shared/types.ts src/worker/db/ledger.ts src/worker/routes/ledger.ts tests/api/bonus.test.ts
+git add src/shared/types.ts src/worker/db/ledger.ts src/worker/routes/ledger.ts tests/dom/helpers.tsx tests/api/bonus.test.ts
 git commit -m "2倍デーの日はシールを倍の枚数で発行する"
 ```
 
@@ -1421,22 +1442,13 @@ git commit -m "親設定にポイント2倍デーの欄を追加"
 - Create: `src/client/components/BonusBanner.tsx`
 - Modify: `src/client/screens/Ledger.tsx`
 - Modify: `src/client/screens/Home.tsx`
-- Modify: `tests/dom/helpers.tsx`
 - Test: `tests/dom/BonusBanner.test.tsx`
 
 **Interfaces:**
 - Consumes: `BootstrapResponse.bonusToday`（Task 5）
 - Produces: `BonusBanner({ onStart }: { onStart?: () => void })`
 
-- [ ] **Step 1: フィクスチャに `bonusToday` を足す**
-
-`tests/dom/helpers.tsx` の `makeBootstrap` の返り値に足す（`pendingGrants: [],` の隣）:
-
-```ts
-    bonusToday: { active: false, multiplier: 1, source: "none", dayKey: "2026-09-05" },
-```
-
-- [ ] **Step 2: 失敗するテストを書く**
+- [ ] **Step 1: 失敗するテストを書く**
 
 `tests/dom/BonusBanner.test.tsx`:
 
@@ -1496,12 +1508,12 @@ describe("2倍デーのバナー", () => {
 });
 ```
 
-- [ ] **Step 3: テストが落ちることを確認する**
+- [ ] **Step 2: テストが落ちることを確認する**
 
 Run: `npx vitest run --project dom tests/dom/BonusBanner.test.tsx`
 Expected: FAIL（`BonusBanner` が見つからない）
 
-- [ ] **Step 4: 実装する**
+- [ ] **Step 3: 実装する**
 
 `src/client/components/BonusBanner.tsx`:
 
@@ -1556,7 +1568,7 @@ export function BonusBanner({ onStart }: { onStart?: () => void }) {
 > `track` の引数の形は `src/client/lib/telemetry.ts` の既存の呼び出しに合わせる。
 > `Ledger.tsx:82` の `track("action", "stick", { ... })` が手本。
 
-- [ ] **Step 5: 台帳に差し込む**
+- [ ] **Step 4: 台帳に差し込む**
 
 `src/client/screens/Ledger.tsx`:
 
@@ -1577,7 +1589,7 @@ const choresRef = useRef<HTMLDivElement>(null);
 <BonusBanner onStart={() => choresRef.current?.scrollIntoView({ behavior: "smooth" })} />
 ```
 
-- [ ] **Step 6: ホームに差し込む**
+- [ ] **Step 5: ホームに差し込む**
 
 `src/client/screens/Home.tsx` の一覧の一番上に置く。
 台帳のパスは `/m/:memberId`（`Home.tsx:35` と同じ）:
@@ -1598,15 +1610,15 @@ import { BonusBanner } from "../components/BonusBanner";
 > `children` は同じファイルで一覧を描いているメンバー配列。
 > 変数名が違う場合はそちらに合わせる。
 
-- [ ] **Step 7: テストが通ることを確認する**
+- [ ] **Step 6: テストが通ることを確認する**
 
 Run: `npx vitest run --project dom`
 Expected: PASS（既存の Ledger / Home も含めて全部）
 
-- [ ] **Step 8: コミット**
+- [ ] **Step 7: コミット**
 
 ```bash
-git add src/client/components/BonusBanner.tsx src/client/screens/Ledger.tsx src/client/screens/Home.tsx tests/dom/helpers.tsx tests/dom/BonusBanner.test.tsx
+git add src/client/components/BonusBanner.tsx src/client/screens/Ledger.tsx src/client/screens/Home.tsx tests/dom/BonusBanner.test.tsx
 git commit -m "2倍デーの帯を台帳とホームに出す"
 ```
 
@@ -1616,23 +1628,13 @@ git commit -m "2倍デーの帯を台帳とホームに出す"
 
 **Files:**
 - Modify: `src/client/screens/Parent.tsx`
-- Modify: `tests/dom/helpers.tsx`
 - Test: `tests/dom/Parent.test.tsx`（追記）
 
 **Interfaces:**
 - Consumes: `Grant.multiplier`（Task 5）
 - Produces: なし（画面だけ）
 
-- [ ] **Step 1: フィクスチャに足す**
-
-`tests/dom/helpers.tsx` の `makeGrant` の返り値に足す（`count: 1,` の隣）:
-
-```ts
-    baseCount: 1,
-    multiplier: 1,
-```
-
-- [ ] **Step 2: 失敗するテストを書く**
+- [ ] **Step 1: 失敗するテストを書く**
 
 `tests/dom/Parent.test.tsx` に追記:
 
@@ -1663,12 +1665,12 @@ git commit -m "2倍デーの帯を台帳とホームに出す"
 > `ParentScreen` / `api.history` / タブのラベルは、同じファイルの既存テストの
 > 書き方をそのまま使う。import も既存のものを流用する。
 
-- [ ] **Step 3: テストが落ちることを確認する**
+- [ ] **Step 2: テストが落ちることを確認する**
 
 Run: `npx vitest run --project dom tests/dom/Parent.test.tsx`
 Expected: FAIL（`×2` が見つからない）
 
-- [ ] **Step 4: 実装する**
+- [ ] **Step 3: 実装する**
 
 `src/client/screens/Parent.tsx` の履歴の行（`{grant.count}まい` を出している箇所、`Parent.tsx:400` 付近）を差し替える:
 
@@ -1697,15 +1699,15 @@ function BonusBadge({ multiplier }: { multiplier: number }) {
 }
 ```
 
-- [ ] **Step 5: テストが通ることを確認する**
+- [ ] **Step 4: テストが通ることを確認する**
 
 Run: `npx vitest run --project dom tests/dom/Parent.test.tsx`
 Expected: PASS
 
-- [ ] **Step 6: コミット**
+- [ ] **Step 5: コミット**
 
 ```bash
-git add src/client/screens/Parent.tsx tests/dom/helpers.tsx tests/dom/Parent.test.tsx
+git add src/client/screens/Parent.tsx tests/dom/Parent.test.tsx
 git commit -m "履歴と承認待ちに2倍のバッジを出す"
 ```
 
@@ -1818,11 +1820,6 @@ describe("購読", () => {
     expect(result.status).toBe(201);
   });
 
-  it("同じ端末が二度登録しても増えない", async () => {
-    const result = await home.client.post("/api/push/subscribe", SUBSCRIPTION);
-    expect(result.status).toBe(201);
-  });
-
   it("鍵が欠けていたら弾く", async () => {
     const result = await home.client.post("/api/push/subscribe", {
       endpoint: "https://push.example.com/sub/broken",
@@ -1830,11 +1827,14 @@ describe("購読", () => {
     expect(result.status).toBe(400);
   });
 
-  it("解除できる", async () => {
-    const result = await home.client.del(
-      `/api/push/subscribe?endpoint=${encodeURIComponent(SUBSCRIPTION.endpoint)}`,
-    );
-    expect(result.status).toBe(200);
+  it("二度登録しても有効な購読は1つだけ", async () => {
+    // 同じ endpoint で登録し直す。古い行は無効化され、有効なものは常に1つ。
+    await home.client.post("/api/push/subscribe", SUBSCRIPTION);
+
+    const path = `/api/push/subscribe?endpoint=${encodeURIComponent(SUBSCRIPTION.endpoint)}`;
+    expect((await home.client.del(path)).status).toBe(200);
+    // 2つ残っていたら、ここも 200 になってしまう
+    expect((await home.client.del(path)).status).toBe(404);
   });
 
   it("他の家庭の購読は解除できない", async () => {
@@ -2515,13 +2515,34 @@ git commit -m "朝8時に2倍デーの通知を送る Cron を追加"
 
 `tests/dom/BonusBanner.test.tsx` に追記:
 
-```tsx
-import * as push from "../../src/client/lib/push";
+ファイル先頭の `vi.mock` の下に、push モジュールのモックを足す。
+ES モジュールの名前空間は書き換えられないので `vi.spyOn` ではなく `vi.mock` を使う:
 
+```tsx
+vi.mock("../../src/client/lib/push", () => ({
+  canUsePush: vi.fn(),
+  pushPermission: vi.fn(),
+  subscribeToPush: vi.fn(),
+}));
+
+import { canUsePush, pushPermission, subscribeToPush } from "../../src/client/lib/push";
+```
+
+既存の `beforeEach` に足す（対応している端末を既定にする）:
+
+```tsx
+  vi.mocked(canUsePush).mockReturnValue(true);
+  vi.mocked(pushPermission).mockReturnValue("default");
+  vi.mocked(subscribeToPush).mockResolvedValue(true);
+```
+
+テスト本体:
+
+```tsx
 describe("おしらせのボタン", () => {
   it("Push に対応していない端末には出さない", async () => {
     vi.mocked(api.bootstrap).mockResolvedValue(makeBootstrap({ bonusToday: ON }));
-    vi.spyOn(push, "canUsePush").mockReturnValue(false);
+    vi.mocked(canUsePush).mockReturnValue(false);
     renderScreen(<BonusBanner />);
 
     await screen.findByText("きょうは ポイント2ばい デー！");
@@ -2530,20 +2551,16 @@ describe("おしらせのボタン", () => {
 
   it("未許可なら出す", async () => {
     vi.mocked(api.bootstrap).mockResolvedValue(makeBootstrap({ bonusToday: ON }));
-    vi.spyOn(push, "canUsePush").mockReturnValue(true);
-    vi.spyOn(push, "pushPermission").mockReturnValue("default");
-    const subscribe = vi.spyOn(push, "subscribeToPush").mockResolvedValue(true);
     renderScreen(<BonusBanner />);
 
     await userEvent.click(await screen.findByRole("button", { name: "おしらせを うけとる" }));
 
-    expect(subscribe).toHaveBeenCalled();
+    expect(subscribeToPush).toHaveBeenCalled();
   });
 
   it("許可ずみなら出さない", async () => {
     vi.mocked(api.bootstrap).mockResolvedValue(makeBootstrap({ bonusToday: ON }));
-    vi.spyOn(push, "canUsePush").mockReturnValue(true);
-    vi.spyOn(push, "pushPermission").mockReturnValue("granted");
+    vi.mocked(pushPermission).mockReturnValue("granted");
     renderScreen(<BonusBanner />);
 
     await screen.findByText("きょうは ポイント2ばい デー！");

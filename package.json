@@ -13,6 +13,7 @@
     "migrate:remote": "wrangler d1 migrations apply otetsudai-point --remote",
     "db:reset": "node -e \"require('fs').rmSync('.wrangler/state/v3/d1',{recursive:true,force:true})\" && npm run migrate:local",
     "icons": "node scripts/make-icons.mjs",
+    "vapid": "node scripts/make-vapid.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
@@ -20,6 +21,7 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
+    "@block65/webcrypto-web-push": "^2.0.0",
     "@tanstack/react-query": "^5.62.0",
     "hono": "^4.6.14",
     "react": "^19.0.0",

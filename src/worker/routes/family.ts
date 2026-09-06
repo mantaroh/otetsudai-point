@@ -286,6 +286,9 @@ familyRoutes.get("/export", requireParent, async (c) => {
     "stickers",
     "redemptions",
     "ui_events",
+    "bonus_rules",
+    "push_subscriptions",
+    "push_sends",
   ] as const;
 
   const data: Record<string, unknown[]> = {};
@@ -319,6 +322,11 @@ familyRoutes.delete("/families/:familyId", requireParent, async (c) => {
     c.env.DB.prepare("DELETE FROM grants WHERE family_id = ?").bind(familyId),
     c.env.DB.prepare("DELETE FROM sheets WHERE family_id = ?").bind(familyId),
     c.env.DB.prepare("DELETE FROM chores WHERE family_id = ?").bind(familyId),
+    // bonus_rules.created_by と push_subscriptions.device_id/member_id が
+    // members/devices を参照するため、その削除より前に消す
+    c.env.DB.prepare("DELETE FROM bonus_rules WHERE family_id = ?").bind(familyId),
+    c.env.DB.prepare("DELETE FROM push_subscriptions WHERE family_id = ?").bind(familyId),
+    c.env.DB.prepare("DELETE FROM push_sends WHERE family_id = ?").bind(familyId),
     c.env.DB.prepare("DELETE FROM device_invites WHERE family_id = ?").bind(familyId),
     c.env.DB.prepare("DELETE FROM devices WHERE family_id = ?").bind(familyId),
     c.env.DB.prepare("DELETE FROM memberships WHERE family_id = ?").bind(familyId),
