@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { BonusRule, BonusState, Chore, FamilySettings, Member } from "../../shared/types";
-import { api } from "../api";
+import { api, ApiError } from "../api";
 import { QrCode } from "../components/QrCode";
 import { withExternalBrowser } from "../lib/inviteUrl";
 import { useBootstrap, useRefreshBootstrap } from "../hooks";
@@ -1105,7 +1105,12 @@ function ChoresSection() {
   const refresh = useRefreshBootstrap();
   const [editing, setEditing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newEmoji, setNewEmoji] = useState("✨");
   if (!data) return null;
+  const chores = data.chores;
 
   async function save(choreId: string, patch: Parameters<typeof api.updateChore>[1]) {
     setError(null);
@@ -1118,23 +1123,103 @@ function ChoresSection() {
     }
   }
 
+  /**
+   * 1つ上か下と入れ替える。送るのは入れ替えたあとの並び全体。
+   * 隣だけを送らないのは、画面とサーバで「今どう並んでいるか」がずれないようにするため。
+   */
+  async function move(index: number, delta: -1 | 1) {
+    const target = index + delta;
+    if (target < 0 || target >= chores.length) return;
+    const ids = chores.map((chore) => chore.id);
+    [ids[index], ids[target]] = [ids[target]!, ids[index]!];
+
+    setError(null);
+    setNotice(null);
+    setBusy(true);
+    try {
+      await withPin((pin) => api.reorderChores(ids, pin));
+      await refresh();
+    } catch (cause) {
+      // 並べている間に子が「そのほか」で1件足した、など。古い並びのまま振り直すと
+      // 足された1件だけ番号が付かずに残るので、サーバは断ってくる。読み込み直して並べ直してもらう。
+      if (cause instanceof ApiError && cause.status === 409) {
+        await refresh();
+        setNotice("メニューが変わっていたので、読み込み直しました。もう一度ならべてください。");
+      } else {
+        setError(cause instanceof Error ? cause.message : "うまくいきませんでした");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function add() {
+    const name = newName.trim();
+    if (!name) return;
+    setError(null);
+    setNotice(null);
+    setBusy(true);
+    try {
+      await api.addChore(name, newEmoji.trim() || undefined);
+      await refresh();
+      setNewName("");
+      setNewEmoji("✨");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "うまくいきませんでした");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <Section
       title="お手伝いメニュー"
-      hint="よく使う順にならびます。子が「そのほか」で入力したものも、ここに載ります。"
+      hint="ならべた順に、子どもの台帳にもならびます。あたらしく足したものは一番上に来ます。子が「そのほか」で入力したものも、ここに載ります。"
     >
+      <div className="mb-3 flex gap-2">
+        <input
+          className="input w-14 text-center"
+          aria-label="絵文字"
+          value={newEmoji}
+          maxLength={8}
+          onChange={(event) => setNewEmoji(event.target.value)}
+        />
+        <input
+          className="input flex-1"
+          aria-label="あたらしいお手伝いの名前"
+          placeholder="あたらしいお手伝い"
+          value={newName}
+          maxLength={40}
+          onChange={(event) => setNewName(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") void add();
+          }}
+        />
+        <button
+          type="button"
+          aria-label="お手伝いを追加"
+          disabled={busy || newName.trim() === ""}
+          onClick={add}
+          className="rounded-lg bg-accent px-3 py-2 text-xs font-bold text-white disabled:opacity-40"
+        >
+          追加
+        </button>
+      </div>
+
       <ul className="space-y-1">
-        {data.chores.map((chore) =>
+        {chores.map((chore, index) =>
           editing === chore.id ? (
             <li key={chore.id}>
               <ChoreEditor chore={chore} onCancel={() => setEditing(null)} onSave={save} />
             </li>
           ) : (
-            <li key={chore.id}>
+            <li key={chore.id} className="flex items-center gap-1">
+              {/* 同じ行に ↑ ↓ も並ぶので、どれも名前で始まる。押すと何が起きるかを名前に含めておく */}
               <button
                 type="button"
+                aria-label={`${chore.name} を編集`}
                 onClick={() => setEditing(chore.id)}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-paper-deep"
+                className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-paper-deep"
               >
                 <span className="text-lg">{chore.emoji ?? "✨"}</span>
                 <span className="flex-1 truncate">{chore.name}</span>
@@ -1145,11 +1230,30 @@ function ChoresSection() {
                 )}
                 <span className="text-xs text-ink-soft">{chore.useCount}回</span>
               </button>
+              <button
+                type="button"
+                aria-label={`${chore.name} を上へ`}
+                disabled={busy || index === 0}
+                onClick={() => move(index, -1)}
+                className="rounded-lg border border-line px-2 py-1 text-xs text-ink-soft disabled:opacity-30"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                aria-label={`${chore.name} を下へ`}
+                disabled={busy || index === chores.length - 1}
+                onClick={() => move(index, 1)}
+                className="rounded-lg border border-line px-2 py-1 text-xs text-ink-soft disabled:opacity-30"
+              >
+                ↓
+              </button>
             </li>
           ),
         )}
       </ul>
 
+      {notice && <p className="mt-3 text-sm text-ink-soft">{notice}</p>}
       {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
     </Section>
   );

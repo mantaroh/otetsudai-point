@@ -40,6 +40,8 @@ export interface Chore {
   defaultCount: number;
   useCount: number;
   lastUsedAt: number | null;
+  /** 並び順。小さいほど上。親が決める */
+  sortOrder: number;
 }
 
 export interface Sticker {

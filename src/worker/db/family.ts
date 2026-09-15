@@ -629,12 +629,14 @@ export async function createFamily(
     );
   });
 
-  for (const chore of DEFAULT_CHORES) {
+  // 並び順は種のリストの順にする。全部 0 にすると同点が名前順で決まり、
+  // 名前を直しただけでボタンの位置が動いてしまう。
+  DEFAULT_CHORES.forEach((chore, index) => {
     statements.push(
       db
         .prepare(
-          `INSERT INTO chores (id, family_id, name, name_norm, emoji, default_count, created_by, created_at)
-           VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
+          `INSERT INTO chores (id, family_id, name, name_norm, emoji, default_count, created_by, created_at, sort_order)
+           VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)`,
         )
         .bind(
           newId("cho"),
@@ -644,9 +646,10 @@ export async function createFamily(
           chore.emoji,
           parentMemberId,
           now,
+          index,
         ),
     );
-  }
+  });
 
   await db.batch(statements);
   return { familyId, parentMemberId };

@@ -1,12 +1,15 @@
 import { Hono } from "hono";
-import { notFound } from "../lib/errors";
+import { badRequest, notFound } from "../lib/errors";
 import { asInt, asOptionalBool, asOptionalString, asString, readJson } from "../lib/validate";
-import { listChores, updateChore, upsertChoreByName } from "../db/chores";
+import { listChores, reorderChores, updateChore, upsertChoreByName } from "../db/chores";
 import { getAuth, requireParent } from "../auth/middleware";
 import type { AppBindings } from "../types";
 
-/** お手伝いメニュー。並び順は使用頻度で、よく使うものが上に来る。 */
+/** お手伝いメニュー。並び順は親が決め、新しく足したものは一番上に来る。 */
 export const choreRoutes = new Hono<AppBindings>();
+
+/** 1家庭のメニューとして現実的な上限。これを超える並びは受け付けない */
+const MAX_CHORES = 200;
 
 choreRoutes.get("/chores", async (c) => {
   const auth = getAuth(c);
@@ -29,6 +32,22 @@ choreRoutes.post("/chores", async (c) => {
     asOptionalString(body.emoji, "絵文字", { max: 8 }),
   );
   return c.json(chore, 201);
+});
+
+/**
+ * 並べ替え。画面に見えている並びを丸ごと送ってもらい、その順に振り直す。
+ * 並びが古い(足された/消されたものがある)ときは 409 を返すので、画面は読み込み直す。
+ */
+choreRoutes.put("/chores/order", requireParent, async (c) => {
+  const auth = getAuth(c);
+  const body = await readJson<{ choreIds?: unknown }>(c.req.raw);
+  if (!Array.isArray(body.choreIds)) throw badRequest("並び順が読み取れませんでした");
+  if (body.choreIds.length > MAX_CHORES) throw badRequest("お手伝いの数が多すぎます");
+
+  const choreIds = body.choreIds.map((id, index) =>
+    asString(id, `choreIds[${index}]`, { max: 64 }),
+  );
+  return c.json(await reorderChores(c.env.DB, auth.familyId, choreIds));
 });
 
 choreRoutes.patch("/chores/:choreId", requireParent, async (c) => {

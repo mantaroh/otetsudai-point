@@ -65,6 +65,7 @@ export const CHORE_BATH: Chore = {
   defaultCount: 1,
   useCount: 10,
   lastUsedAt: null,
+  sortOrder: 0,
 };
 
 export const CHORE_WALK: Chore = {
@@ -74,6 +75,7 @@ export const CHORE_WALK: Chore = {
   defaultCount: 3,
   useCount: 4,
   lastUsedAt: null,
+  sortOrder: 1,
 };
 
 export function makeStickers(count: number, art: string | null = "🛁"): Sticker[] {

@@ -142,7 +142,9 @@ test("子どもの名前をあとから変えられる", async ({ page }) => {
 
   const family = page.locator("section", { has: page.getByRole("heading", { name: "家族" }) });
   await family.getByRole("button", { name: /はな/ }).click();
-  await page.getByLabel("名前").fill("はなこ");
+  // exact にしておく。せってい画面には「あたらしいお手伝いの名前」なども常に出ていて、
+  // getByLabel は既定で部分一致なので、「名前」だけだと複数に当たる
+  await page.getByLabel("名前", { exact: true }).fill("はなこ");
   await page.getByRole("button", { name: "ほぞん" }).click();
 
   // 親の画面に反映される
