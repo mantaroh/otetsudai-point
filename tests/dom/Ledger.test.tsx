@@ -274,6 +274,8 @@ describe("そのほか(自由入力)", () => {
       defaultCount: 1,
       useCount: 0,
       lastUsedAt: null,
+      // 新しく足したものは一番上に来る
+      sortOrder: -1,
     };
     vi.mocked(api.addChore).mockResolvedValue(created);
 
