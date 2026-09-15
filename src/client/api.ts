@@ -168,6 +168,14 @@ export const api = {
       pin,
     }),
 
+  /** 画面に見えている並びを丸ごと送る。並びが古ければ 409 が返る */
+  reorderChores: (choreIds: string[], pin?: string) =>
+    request<Chore[]>("chore-reorder", "/chores/order", {
+      method: "PUT",
+      body: JSON.stringify({ choreIds }),
+      pin,
+    }),
+
   grant: (body: GrantRequest & { asParent?: boolean }, pin?: string) =>
     post<GrantResponse>("stick", "/grants", body, pin),
   revokeGrant: (grantId: string, reason?: string, pin?: string) =>

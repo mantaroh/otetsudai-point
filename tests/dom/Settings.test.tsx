@@ -580,7 +580,7 @@ describe("お手伝いメニュー", () => {
     const user = await openSettings();
     expect(screen.queryByLabelText("お手伝いの名前")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: new RegExp(CHORE_BATH.name) }));
+    await user.click(screen.getByRole("button", { name: `${CHORE_BATH.name} を編集` }));
     expect(screen.getByLabelText("お手伝いの名前")).toHaveValue(CHORE_BATH.name);
   });
 
@@ -588,7 +588,7 @@ describe("お手伝いメニュー", () => {
     vi.mocked(api.updateChore).mockResolvedValue({ ...CHORE_BATH, name: "おふろあらい" });
     const user = await openSettings();
 
-    await user.click(screen.getByRole("button", { name: new RegExp(CHORE_BATH.name) }));
+    await user.click(screen.getByRole("button", { name: `${CHORE_BATH.name} を編集` }));
     const nameInput = screen.getByLabelText("お手伝いの名前");
     await user.clear(nameInput);
     await user.type(nameInput, "おふろあらい");
@@ -610,7 +610,7 @@ describe("お手伝いメニュー", () => {
     vi.mocked(api.updateChore).mockResolvedValue(CHORE_BATH);
     const user = await openSettings();
 
-    await user.click(screen.getByRole("button", { name: new RegExp(CHORE_BATH.name) }));
+    await user.click(screen.getByRole("button", { name: `${CHORE_BATH.name} を編集` }));
     expect(screen.getByText(/これまでの記録は残ります/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "しまう" }));
@@ -621,7 +621,7 @@ describe("お手伝いメニュー", () => {
 
   it("名前を空にしては保存できない", async () => {
     const user = await openSettings();
-    await user.click(screen.getByRole("button", { name: new RegExp(CHORE_BATH.name) }));
+    await user.click(screen.getByRole("button", { name: `${CHORE_BATH.name} を編集` }));
     await user.clear(screen.getByLabelText("お手伝いの名前"));
     expect(screen.getByRole("button", { name: "ほぞん" })).toBeDisabled();
   });
